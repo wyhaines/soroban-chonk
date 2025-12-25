@@ -20,7 +20,7 @@ mod tests {
     extern crate std;
 
     use super::*;
-    use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, Env};
+    use soroban_sdk::{Address, Bytes, Env, contract, contractimpl, symbol_short};
 
     // Test contract to provide contract context for storage access
     #[contract]

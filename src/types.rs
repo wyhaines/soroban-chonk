@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Symbol};
+use soroban_sdk::{Symbol, contracttype};
 
 /// Storage keys for chunked content
 #[derive(Clone)]
