@@ -1,5 +1,9 @@
 # soroban-chonk
 
+[![CI](https://github.com/wyhaines/soroban-chonk/actions/workflows/ci.yml/badge.svg)](https://github.com/wyhaines/soroban-chonk/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/soroban-chonk.svg)](https://crates.io/crates/soroban-chonk)
+[![License](https://img.shields.io/crates/l/soroban-chonk.svg)](LICENSE)
+
 Chunked content storage for Soroban smart contracts.
 
 Tip of the hat to [Nathan Toups](https://github.com/n2p5) for the [original name and idea](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/n2p5/chonk) that this code is loosely inspired by.

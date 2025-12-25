@@ -5,6 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Chunked content storage for Soroban smart contracts"
 repository = "https://github.com/wyhaines/soroban-chonk"
+readme = "README.md"
 keywords = ["soroban", "stellar", "blockchain", "storage", "chunked"]
 categories = ["no-std", "data-structures"]
 
