@@ -22,7 +22,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-soroban-chonk = "0.1"
+soroban-chonk = "1"
 ```
 
 ## Quick Start
