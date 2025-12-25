@@ -2,6 +2,8 @@
 
 Chunked content storage for Soroban smart contracts.
 
+Tip of the hat to [Nathan Toups](https://github.com/n2p5) for the [original name and idea](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/n2p5/chonk) that this code is loosely inspired by.
+
 ## Overview
 
 `soroban-chonk` provides a simple, efficient way to store large content as a series of chunks in Soroban contract storage. This is useful when:
@@ -128,4 +130,4 @@ pub fn render(env: Env) -> Bytes {
 
 ## License
 
-MIT OR Apache-2.0
+[Apache-2.0](LICENSE)
