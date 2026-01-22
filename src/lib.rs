@@ -22,23 +22,25 @@ mod tests {
     use super::*;
     use soroban_sdk::{Address, Bytes, Env, contract, contractimpl, symbol_short};
 
-    // Test contract to provide contract context for storage access
     #[contract]
     pub struct TestContract;
 
     #[contractimpl]
-    impl TestContract {
-        pub fn init(_env: Env) {}
+    impl TestContract {}
+
+    fn setup_test_env() -> (Env, Address) {
+        let env = Env::default();
+        let contract_id = env.register(TestContract, ());
+        (env, contract_id)
     }
 
-    fn test_contract_id(env: &Env) -> Address {
-        env.register(TestContract, ())
+    fn bytes(env: &Env, data: &[u8]) -> Bytes {
+        Bytes::from_slice(env, data)
     }
 
     #[test]
     fn test_empty_chonk() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
@@ -52,14 +54,13 @@ mod tests {
 
     #[test]
     fn test_push_and_get() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            let chunk1 = Bytes::from_slice(&env, b"Hello, ");
-            let chunk2 = Bytes::from_slice(&env, b"World!");
+            let chunk1 = bytes(&env, b"Hello, ");
+            let chunk2 = bytes(&env, b"World!");
 
             let idx1 = chonk.push(chunk1.clone());
             let idx2 = chonk.push(chunk2.clone());
@@ -77,36 +78,34 @@ mod tests {
 
     #[test]
     fn test_assemble() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"Hello, "));
-            chonk.push(Bytes::from_slice(&env, b"World!"));
+            chonk.push(bytes(&env, b"Hello, "));
+            chonk.push(bytes(&env, b"World!"));
 
             let assembled = chonk.assemble();
-            assert_eq!(assembled, Bytes::from_slice(&env, b"Hello, World!"));
+            assert_eq!(assembled, bytes(&env, b"Hello, World!"));
         });
     }
 
     #[test]
     fn test_write_chunked() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            let content = Bytes::from_slice(&env, b"ABCDEFGHIJ"); // 10 bytes
+            let content = bytes(&env, b"ABCDEFGHIJ"); // 10 bytes
             chonk.write_chunked(content.clone(), 3);
 
             assert_eq!(chonk.count(), 4); // 3 + 3 + 3 + 1
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"ABC")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"DEF")));
-            assert_eq!(chonk.get(2), Some(Bytes::from_slice(&env, b"GHI")));
-            assert_eq!(chonk.get(3), Some(Bytes::from_slice(&env, b"J")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"ABC")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"DEF")));
+            assert_eq!(chonk.get(2), Some(bytes(&env, b"GHI")));
+            assert_eq!(chonk.get(3), Some(bytes(&env, b"J")));
 
             let assembled = chonk.assemble();
             assert_eq!(assembled, content);
@@ -115,70 +114,66 @@ mod tests {
 
     #[test]
     fn test_set() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"old"));
-            chonk.set(0, Bytes::from_slice(&env, b"new_value"));
+            chonk.push(bytes(&env, b"old"));
+            chonk.set(0, bytes(&env, b"new_value"));
 
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"new_value")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"new_value")));
             assert_eq!(chonk.total_bytes(), 9);
         });
     }
 
     #[test]
     fn test_insert() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
-            chonk.insert(1, Bytes::from_slice(&env, b"B"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"C"));
+            chonk.insert(1, bytes(&env, b"B"));
 
             assert_eq!(chonk.count(), 3);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"B")));
-            assert_eq!(chonk.get(2), Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"B")));
+            assert_eq!(chonk.get(2), Some(bytes(&env, b"C")));
         });
     }
 
     #[test]
     fn test_remove() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             let removed = chonk.remove(1);
 
-            assert_eq!(removed, Some(Bytes::from_slice(&env, b"B")));
+            assert_eq!(removed, Some(bytes(&env, b"B")));
             assert_eq!(chonk.count(), 2);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"C")));
         });
     }
 
     #[test]
     fn test_clear() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
             chonk.clear();
 
             assert!(chonk.is_empty());
@@ -189,59 +184,52 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             let chunks: std::vec::Vec<Bytes> = chonk.iter().collect();
 
             assert_eq!(chunks.len(), 3);
-            assert_eq!(chunks[0], Bytes::from_slice(&env, b"A"));
-            assert_eq!(chunks[1], Bytes::from_slice(&env, b"B"));
-            assert_eq!(chunks[2], Bytes::from_slice(&env, b"C"));
+            assert_eq!(chunks[0], bytes(&env, b"A"));
+            assert_eq!(chunks[1], bytes(&env, b"B"));
+            assert_eq!(chunks[2], bytes(&env, b"C"));
         });
     }
 
     #[test]
     fn test_append() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.append(Bytes::from_slice(&env, b"Hello"), 20);
+            chonk.append(bytes(&env, b"Hello"), 20);
             assert_eq!(chonk.count(), 1);
 
-            chonk.append(Bytes::from_slice(&env, b", World!"), 20);
+            chonk.append(bytes(&env, b", World!"), 20);
             assert_eq!(chonk.count(), 1); // Should append to existing
-            assert_eq!(
-                chonk.get(0),
-                Some(Bytes::from_slice(&env, b"Hello, World!"))
-            );
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"Hello, World!")));
 
-            chonk.append(Bytes::from_slice(&env, b" This is a long addition"), 20);
+            chonk.append(bytes(&env, b" This is a long addition"), 20);
             assert_eq!(chonk.count(), 2); // Should create new chunk
         });
     }
 
     #[test]
     fn test_get_range() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
             for i in 0..10u8 {
-                let s = [b'0' + i];
-                chonk.push(Bytes::from_slice(&env, &s));
+                chonk.push(bytes(&env, &[b'0' + i]));
             }
 
             let range = chonk.get_range(3, 4);
@@ -251,40 +239,38 @@ mod tests {
 
     #[test]
     fn test_multiple_collections() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk_a = Chonk::open(&env, symbol_short!("a"));
             let chonk_b = Chonk::open(&env, symbol_short!("b"));
 
-            chonk_a.push(Bytes::from_slice(&env, b"A content"));
-            chonk_b.push(Bytes::from_slice(&env, b"B content"));
+            chonk_a.push(bytes(&env, b"A content"));
+            chonk_b.push(bytes(&env, b"B content"));
 
             assert_eq!(chonk_a.count(), 1);
             assert_eq!(chonk_b.count(), 1);
-            assert_eq!(chonk_a.get(0), Some(Bytes::from_slice(&env, b"A content")));
-            assert_eq!(chonk_b.get(0), Some(Bytes::from_slice(&env, b"B content")));
+            assert_eq!(chonk_a.get(0), Some(bytes(&env, b"A content")));
+            assert_eq!(chonk_b.get(0), Some(bytes(&env, b"B content")));
         });
     }
 
     #[test]
     fn test_version_tracking() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
             assert_eq!(chonk.meta().version, 0);
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
+            chonk.push(bytes(&env, b"A"));
             assert_eq!(chonk.meta().version, 1);
 
-            chonk.push(Bytes::from_slice(&env, b"B"));
+            chonk.push(bytes(&env, b"B"));
             assert_eq!(chonk.meta().version, 2);
 
-            chonk.set(0, Bytes::from_slice(&env, b"A2"));
+            chonk.set(0, bytes(&env, b"A2"));
             assert_eq!(chonk.meta().version, 3);
 
             chonk.remove(1);
@@ -297,51 +283,47 @@ mod tests {
     #[test]
     #[should_panic(expected = "Index out of bounds")]
     fn test_set_out_of_bounds_panics() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
-            chonk.set(0, Bytes::from_slice(&env, b"data")); // No chunks exist
+            chonk.set(0, bytes(&env, b"data")); // No chunks exist
         });
     }
 
     #[test]
     #[should_panic(expected = "Index out of bounds")]
     fn test_set_beyond_count_panics() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.set(5, Bytes::from_slice(&env, b"data")); // Index 5 doesn't exist
+            chonk.push(bytes(&env, b"A"));
+            chonk.set(5, bytes(&env, b"data")); // Index 5 doesn't exist
         });
     }
 
     #[test]
     #[should_panic(expected = "Index out of bounds")]
     fn test_insert_beyond_count_panics() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.insert(5, Bytes::from_slice(&env, b"data")); // Index 5 is beyond count (1)
+            chonk.push(bytes(&env, b"A"));
+            chonk.insert(5, bytes(&env, b"data")); // Index 5 is beyond count (1)
         });
     }
 
     #[test]
     fn test_remove_out_of_bounds_returns_none() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
             assert!(chonk.remove(0).is_none()); // Empty collection
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
+            chonk.push(bytes(&env, b"A"));
             assert!(chonk.remove(5).is_none()); // Beyond count
         });
     }
@@ -350,8 +332,7 @@ mod tests {
 
     #[test]
     fn test_push_empty_bytes() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
@@ -368,19 +349,16 @@ mod tests {
 
     #[test]
     fn test_write_chunked_empty_content() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            // First add some content
-            chonk.push(Bytes::from_slice(&env, b"existing"));
+            chonk.push(bytes(&env, b"existing"));
             assert_eq!(chonk.count(), 1);
 
             // Write empty content - should clear and leave empty
-            let empty = Bytes::new(&env);
-            chonk.write_chunked(empty, 10);
+            chonk.write_chunked(Bytes::new(&env), 10);
 
             assert!(chonk.is_empty());
             assert_eq!(chonk.count(), 0);
@@ -389,32 +367,30 @@ mod tests {
 
     #[test]
     fn test_write_chunked_exact_chunk_size() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
             // Content exactly divisible by chunk_size
-            let content = Bytes::from_slice(&env, b"ABCDEF"); // 6 bytes
+            let content = bytes(&env, b"ABCDEF"); // 6 bytes
             chonk.write_chunked(content.clone(), 3);
 
             assert_eq!(chonk.count(), 2); // 3 + 3
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"ABC")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"DEF")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"ABC")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"DEF")));
             assert_eq!(chonk.assemble(), content);
         });
     }
 
     #[test]
     fn test_write_chunked_content_smaller_than_chunk_size() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            let content = Bytes::from_slice(&env, b"Hi"); // 2 bytes
+            let content = bytes(&env, b"Hi"); // 2 bytes
             chonk.write_chunked(content.clone(), 100);
 
             assert_eq!(chonk.count(), 1);
@@ -424,130 +400,123 @@ mod tests {
 
     #[test]
     fn test_write_chunked_single_byte_chunks() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            let content = Bytes::from_slice(&env, b"ABC");
+            let content = bytes(&env, b"ABC");
             chonk.write_chunked(content.clone(), 1);
 
             assert_eq!(chonk.count(), 3);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"B")));
-            assert_eq!(chonk.get(2), Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"B")));
+            assert_eq!(chonk.get(2), Some(bytes(&env, b"C")));
             assert_eq!(chonk.assemble(), content);
         });
     }
 
     #[test]
     fn test_insert_at_beginning() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
-            chonk.insert(0, Bytes::from_slice(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
+            chonk.insert(0, bytes(&env, b"A"));
 
             assert_eq!(chonk.count(), 3);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"B")));
-            assert_eq!(chonk.get(2), Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"B")));
+            assert_eq!(chonk.get(2), Some(bytes(&env, b"C")));
         });
     }
 
     #[test]
     fn test_insert_at_end() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.insert(2, Bytes::from_slice(&env, b"C")); // Insert at count (end)
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.insert(2, bytes(&env, b"C")); // Insert at count (end)
 
             assert_eq!(chonk.count(), 3);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"B")));
-            assert_eq!(chonk.get(2), Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"B")));
+            assert_eq!(chonk.get(2), Some(bytes(&env, b"C")));
         });
     }
 
     #[test]
     fn test_insert_into_empty() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.insert(0, Bytes::from_slice(&env, b"A"));
+            chonk.insert(0, bytes(&env, b"A"));
 
             assert_eq!(chonk.count(), 1);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
         });
     }
 
     #[test]
     fn test_remove_first_chunk() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             let removed = chonk.remove(0);
 
-            assert_eq!(removed, Some(Bytes::from_slice(&env, b"A")));
+            assert_eq!(removed, Some(bytes(&env, b"A")));
             assert_eq!(chonk.count(), 2);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"B")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"B")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"C")));
         });
     }
 
     #[test]
     fn test_remove_last_chunk() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             let removed = chonk.remove(2);
 
-            assert_eq!(removed, Some(Bytes::from_slice(&env, b"C")));
+            assert_eq!(removed, Some(bytes(&env, b"C")));
             assert_eq!(chonk.count(), 2);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"A")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"B")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"A")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"B")));
         });
     }
 
     #[test]
     fn test_remove_only_chunk() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"Only"));
+            chonk.push(bytes(&env, b"Only"));
             let removed = chonk.remove(0);
 
-            assert_eq!(removed, Some(Bytes::from_slice(&env, b"Only")));
+            assert_eq!(removed, Some(bytes(&env, b"Only")));
             assert!(chonk.is_empty());
             assert_eq!(chonk.count(), 0);
         });
@@ -557,8 +526,7 @@ mod tests {
 
     #[test]
     fn test_iter_empty_collection() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
@@ -570,15 +538,14 @@ mod tests {
 
     #[test]
     fn test_iter_exact_size() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             let mut iter = chonk.iter();
             assert_eq!(iter.len(), 3);
@@ -600,29 +567,27 @@ mod tests {
 
     #[test]
     fn test_iter_partial() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             // Only take first 2
             let first_two: std::vec::Vec<Bytes> = chonk.iter().take(2).collect();
 
             assert_eq!(first_two.len(), 2);
-            assert_eq!(first_two[0], Bytes::from_slice(&env, b"A"));
-            assert_eq!(first_two[1], Bytes::from_slice(&env, b"B"));
+            assert_eq!(first_two[0], bytes(&env, b"A"));
+            assert_eq!(first_two[1], bytes(&env, b"B"));
         });
     }
 
     #[test]
     fn test_assemble_empty() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
@@ -635,15 +600,6 @@ mod tests {
     // ─── Types Tests ────────────────────────────────────────
 
     #[test]
-    fn test_chonk_meta_new() {
-        let meta = ChonkMeta::new();
-
-        assert_eq!(meta.count, 0);
-        assert_eq!(meta.total_bytes, 0);
-        assert_eq!(meta.version, 0);
-    }
-
-    #[test]
     fn test_chonk_meta_default() {
         let meta: ChonkMeta = Default::default();
 
@@ -654,12 +610,12 @@ mod tests {
 
     #[test]
     fn test_chonk_meta_equality() {
-        let meta1 = ChonkMeta::new();
+        let meta1 = ChonkMeta::default();
         let meta2 = ChonkMeta::default();
 
         assert_eq!(meta1, meta2);
 
-        let mut meta3 = ChonkMeta::new();
+        let mut meta3 = ChonkMeta::default();
         meta3.count = 1;
 
         assert_ne!(meta1, meta3);
@@ -667,8 +623,7 @@ mod tests {
 
     #[test]
     fn test_chonk_id() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("myid"));
@@ -681,71 +636,67 @@ mod tests {
 
     #[test]
     fn test_append_to_empty_collection() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.append(Bytes::from_slice(&env, b"First"), 100);
+            chonk.append(bytes(&env, b"First"), 100);
 
             assert_eq!(chonk.count(), 1);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"First")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"First")));
         });
     }
 
     #[test]
     fn test_append_exactly_at_max_chunk_size() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
             // First chunk of 5 bytes
-            chonk.append(Bytes::from_slice(&env, b"Hello"), 10);
+            chonk.append(bytes(&env, b"Hello"), 10);
 
             // Add 5 more bytes - exactly reaches max_chunk_size
-            chonk.append(Bytes::from_slice(&env, b"World"), 10);
+            chonk.append(bytes(&env, b"World"), 10);
 
             assert_eq!(chonk.count(), 1); // Should still fit in one chunk
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"HelloWorld")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"HelloWorld")));
         });
     }
 
     #[test]
     fn test_append_exceeds_max_chunk_size() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
             // First chunk of 8 bytes
-            chonk.append(Bytes::from_slice(&env, b"12345678"), 10);
+            chonk.append(bytes(&env, b"12345678"), 10);
 
             // Add 5 more bytes - would exceed max_chunk_size
-            chonk.append(Bytes::from_slice(&env, b"ABCDE"), 10);
+            chonk.append(bytes(&env, b"ABCDE"), 10);
 
             assert_eq!(chonk.count(), 2);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"12345678")));
-            assert_eq!(chonk.get(1), Some(Bytes::from_slice(&env, b"ABCDE")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"12345678")));
+            assert_eq!(chonk.get(1), Some(bytes(&env, b"ABCDE")));
         });
     }
 
     #[test]
     fn test_append_empty_bytes() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.append(Bytes::from_slice(&env, b"Data"), 10);
+            chonk.append(bytes(&env, b"Data"), 10);
             chonk.append(Bytes::new(&env), 10); // Append empty
 
             assert_eq!(chonk.count(), 1);
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"Data")));
+            assert_eq!(chonk.get(0), Some(bytes(&env, b"Data")));
         });
     }
 
@@ -753,8 +704,7 @@ mod tests {
 
     #[test]
     fn test_get_range_empty_collection() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
@@ -766,14 +716,13 @@ mod tests {
 
     #[test]
     fn test_get_range_start_beyond_count() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
 
             let range = chonk.get_range(10, 5); // Start way past end
             assert_eq!(range.len(), 0);
@@ -782,14 +731,13 @@ mod tests {
 
     #[test]
     fn test_get_range_zero_count() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
 
             let range = chonk.get_range(0, 0);
             assert_eq!(range.len(), 0);
@@ -798,15 +746,14 @@ mod tests {
 
     #[test]
     fn test_get_range_extends_past_end() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             // Request more than available
             let range = chonk.get_range(1, 100);
@@ -816,15 +763,14 @@ mod tests {
 
     #[test]
     fn test_get_range_exact_bounds() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
-            chonk.push(Bytes::from_slice(&env, b"C"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
 
             let range = chonk.get_range(0, 3);
             assert_eq!(range.len(), 3);
@@ -835,8 +781,7 @@ mod tests {
 
     #[test]
     fn test_total_bytes_after_operations() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
@@ -844,19 +789,19 @@ mod tests {
             assert_eq!(chonk.total_bytes(), 0);
 
             // Push 5 bytes
-            chonk.push(Bytes::from_slice(&env, b"Hello"));
+            chonk.push(bytes(&env, b"Hello"));
             assert_eq!(chonk.total_bytes(), 5);
 
             // Push 6 more bytes
-            chonk.push(Bytes::from_slice(&env, b"World!"));
+            chonk.push(bytes(&env, b"World!"));
             assert_eq!(chonk.total_bytes(), 11);
 
             // Set first chunk to 3 bytes (was 5)
-            chonk.set(0, Bytes::from_slice(&env, b"Hi!"));
+            chonk.set(0, bytes(&env, b"Hi!"));
             assert_eq!(chonk.total_bytes(), 9); // 3 + 6
 
             // Insert 2 bytes
-            chonk.insert(1, Bytes::from_slice(&env, b"XX"));
+            chonk.insert(1, bytes(&env, b"XX"));
             assert_eq!(chonk.total_bytes(), 11); // 3 + 2 + 6
 
             // Remove middle chunk (2 bytes)
@@ -869,16 +814,15 @@ mod tests {
 
     #[test]
     fn test_version_increments_on_insert() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
+            chonk.push(bytes(&env, b"A"));
             let v1 = chonk.meta().version;
 
-            chonk.insert(0, Bytes::from_slice(&env, b"B"));
+            chonk.insert(0, bytes(&env, b"B"));
             let v2 = chonk.meta().version;
 
             assert_eq!(v2, v1 + 1);
@@ -887,17 +831,16 @@ mod tests {
 
     #[test]
     fn test_version_increments_on_append() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.append(Bytes::from_slice(&env, b"Hello"), 100);
+            chonk.append(bytes(&env, b"Hello"), 100);
             let v1 = chonk.meta().version;
 
             // Append to existing chunk still increments version (via set)
-            chonk.append(Bytes::from_slice(&env, b"World"), 100);
+            chonk.append(bytes(&env, b"World"), 100);
             let v2 = chonk.meta().version;
 
             assert!(v2 > v1);
@@ -906,14 +849,13 @@ mod tests {
 
     #[test]
     fn test_version_after_clear() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            chonk.push(Bytes::from_slice(&env, b"A"));
-            chonk.push(Bytes::from_slice(&env, b"B"));
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
 
             chonk.clear();
 
@@ -926,21 +868,20 @@ mod tests {
 
     #[test]
     fn test_reopen_collection() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             // First open - add data
             {
                 let chonk = Chonk::open(&env, symbol_short!("test"));
-                chonk.push(Bytes::from_slice(&env, b"Persistent"));
+                chonk.push(bytes(&env, b"Persistent"));
             }
 
             // Second open - data should still be there
             {
                 let chonk = Chonk::open(&env, symbol_short!("test"));
                 assert_eq!(chonk.count(), 1);
-                assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, b"Persistent")));
+                assert_eq!(chonk.get(0), Some(bytes(&env, b"Persistent")));
             }
         });
     }
@@ -949,32 +890,29 @@ mod tests {
 
     #[test]
     fn test_many_small_chunks() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
             // Push 100 small chunks
             for i in 0u8..100 {
-                let data = [i];
-                chonk.push(Bytes::from_slice(&env, &data));
+                chonk.push(bytes(&env, &[i]));
             }
 
             assert_eq!(chonk.count(), 100);
             assert_eq!(chonk.total_bytes(), 100);
 
             // Verify some values
-            assert_eq!(chonk.get(0), Some(Bytes::from_slice(&env, &[0u8])));
-            assert_eq!(chonk.get(50), Some(Bytes::from_slice(&env, &[50u8])));
-            assert_eq!(chonk.get(99), Some(Bytes::from_slice(&env, &[99u8])));
+            assert_eq!(chonk.get(0), Some(bytes(&env, &[0u8])));
+            assert_eq!(chonk.get(50), Some(bytes(&env, &[50u8])));
+            assert_eq!(chonk.get(99), Some(bytes(&env, &[99u8])));
         });
     }
 
     #[test]
     fn test_write_chunked_larger_content() {
-        let env = Env::default();
-        let contract_id = test_contract_id(&env);
+        let (env, contract_id) = setup_test_env();
 
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));

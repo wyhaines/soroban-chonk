@@ -11,7 +11,7 @@ pub enum ChonkKey {
 }
 
 /// Metadata about a chunked content collection
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[contracttype]
 pub struct ChonkMeta {
     /// Number of chunks in this collection
@@ -20,20 +20,4 @@ pub struct ChonkMeta {
     pub total_bytes: u32,
     /// Version for optimistic locking (incremented on each write)
     pub version: u32,
-}
-
-impl ChonkMeta {
-    pub fn new() -> Self {
-        Self {
-            count: 0,
-            total_bytes: 0,
-            version: 0,
-        }
-    }
-}
-
-impl Default for ChonkMeta {
-    fn default() -> Self {
-        Self::new()
-    }
 }
