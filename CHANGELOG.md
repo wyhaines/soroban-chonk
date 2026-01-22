@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2](https://github.com/wyhaines/soroban-chonk/compare/v1.0.1...v1.0.2) - 2026-01-22
+
+### Other
+
+- Add a bunch of tests.
+- Only run release workflow if testing workflow succeeds.
+- Update version from 1.0.0 to 1.0.1 in CHANGELOG
+
 ## [1.0.1] - 2024-12-25
 
 ### Added
