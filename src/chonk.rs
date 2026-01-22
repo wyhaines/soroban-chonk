@@ -230,14 +230,14 @@ impl<'a> Chonk<'a> {
         let last_index = meta.count.saturating_sub(1);
 
         // Try to append to existing last chunk if it fits
-        if let Some(last_chunk) = self.get(last_index) {
-            if last_chunk.len() + content.len() <= max_chunk_size {
-                let mut combined = Bytes::new(self.env);
-                combined.append(&last_chunk);
-                combined.append(&content);
-                self.set(last_index, combined);
-                return;
-            }
+        if let Some(last_chunk) = self.get(last_index)
+            && last_chunk.len() + content.len() <= max_chunk_size
+        {
+            let mut combined = Bytes::new(self.env);
+            combined.append(&last_chunk);
+            combined.append(&content);
+            self.set(last_index, combined);
+            return;
         }
 
         // Create new chunk if empty, doesn't exist, or would exceed max size
