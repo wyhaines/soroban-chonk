@@ -711,6 +711,21 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_append_empty_bytes_to_empty_collection() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            // Appending empty content to empty collection should be a no-op
+            chonk.append(Bytes::new(&env), 10);
+
+            assert!(chonk.is_empty());
+            assert_eq!(chonk.count(), 0);
+        });
+    }
+
     // ─── Get Range Edge Case Tests ──────────────────────────
 
     #[test]

@@ -227,12 +227,22 @@ impl<'a> Chonk<'a> {
 
     /// Append content to last chunk or create new if it would exceed max size
     pub fn append(&self, content: Bytes, max_chunk_size: u32) {
+        if content.is_empty() {
+            return;
+        }
+
         let meta = self.meta();
-        let last_index = meta.count.saturating_sub(1);
+
+        if meta.count == 0 {
+            self.push(content);
+            return;
+        }
+
+        let last_index = meta.count - 1;
 
         // Try to append to existing last chunk if it fits
         if let Some(last_chunk) = self.get(last_index)
-            && last_chunk.len() + content.len() <= max_chunk_size
+            && last_chunk.len().saturating_add(content.len()) <= max_chunk_size
         {
             let mut combined = Bytes::new(self.env);
             combined.append(&last_chunk);
@@ -241,7 +251,7 @@ impl<'a> Chonk<'a> {
             return;
         }
 
-        // Create new chunk if empty, doesn't exist, or would exceed max size
+        // Create new chunk if would exceed max size
         self.push(content);
     }
 }
