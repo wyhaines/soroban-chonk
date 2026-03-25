@@ -788,6 +788,22 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_get_range_u32_max_overflow() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+
+            // start + count would overflow u32; should not panic
+            let range = chonk.get_range(u32::MAX, 1);
+            assert_eq!(range.len(), 0);
+        });
+    }
+
     // ─── Total Bytes Tracking Tests ─────────────────────────
 
     #[test]

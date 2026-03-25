@@ -56,7 +56,7 @@ impl<'a> Chonk<'a> {
     pub fn get_range(&self, start: u32, count: u32) -> Vec<Bytes> {
         let mut result = Vec::new(self.env);
         let meta = self.meta();
-        let end = core::cmp::min(start + count, meta.count);
+        let end = core::cmp::min(start.saturating_add(count), meta.count);
 
         for i in start..end {
             if let Some(chunk) = self.get(i) {
