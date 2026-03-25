@@ -1,18 +1,16 @@
 #![no_std]
 
 mod chonk;
-mod error;
 mod iter;
 mod types;
 
 pub use chonk::Chonk;
-pub use error::ChonkError;
 pub use iter::ChonkIter;
 pub use types::{ChonkKey, ChonkMeta};
 
 /// Prelude for convenient imports
 pub mod prelude {
-    pub use crate::{Chonk, ChonkError, ChonkIter, ChonkKey, ChonkMeta};
+    pub use crate::{Chonk, ChonkIter, ChonkKey, ChonkMeta};
 }
 
 #[cfg(test)]
