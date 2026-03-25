@@ -931,6 +931,26 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_version_across_write_chunked() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            chonk.push(bytes(&env, b"old"));
+            let version_before = chonk.meta().version; // 1
+
+            // write_chunked calls clear() then 2x push()
+            // clear: version_before + 1, push "ABC": +1, push "DEF": +1 = version_before + 3
+            chonk.write_chunked(bytes(&env, b"ABCDEF"), 3);
+
+            let version_after = chonk.meta().version;
+            assert_eq!(version_after, version_before + 3); // clear + 2 pushes
+            assert_eq!(chonk.count(), 2);
+        });
+    }
+
     // ─── Reopening Collection Tests ─────────────────────────
 
     #[test]
