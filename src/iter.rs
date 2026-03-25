@@ -29,9 +29,14 @@ impl<'a> Iterator for ChonkIter<'a> {
         }
 
         let key = ChonkKey::Chunk(self.id.clone(), self.current);
-        let result = self.env.storage().persistent().get(&key);
         self.current += 1;
-        result
+        Some(
+            self.env
+                .storage()
+                .persistent()
+                .get(&key)
+                .expect("Chunk missing from storage: data corruption"),
+        )
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
