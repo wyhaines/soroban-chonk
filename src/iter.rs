@@ -33,6 +33,11 @@ impl<'a> Iterator for ChonkIter<'a> {
         self.current += 1;
         result
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.count - self.current) as usize;
+        (remaining, Some(remaining))
+    }
 }
 
 impl<'a> ExactSizeIterator for ChonkIter<'a> {

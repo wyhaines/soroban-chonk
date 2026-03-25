@@ -577,6 +577,29 @@ mod tests {
     }
 
     #[test]
+    fn test_iter_size_hint() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
+
+            let mut iter = chonk.iter();
+            assert_eq!(iter.size_hint(), (3, Some(3)));
+
+            iter.next();
+            assert_eq!(iter.size_hint(), (2, Some(2)));
+
+            iter.next();
+            iter.next();
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
+    }
+
+    #[test]
     fn test_iter_partial() {
         let (env, contract_id) = setup_test_env();
 
