@@ -899,10 +899,14 @@ mod tests {
             chonk.push(bytes(&env, b"A"));
             chonk.push(bytes(&env, b"B"));
 
+            let version_before = chonk.meta().version;
             chonk.clear();
 
-            // After clear, meta is removed so version resets
-            assert_eq!(chonk.meta().version, 0);
+            // After clear, version should be preserved and incremented
+            let meta = chonk.meta();
+            assert_eq!(meta.count, 0);
+            assert_eq!(meta.total_bytes, 0);
+            assert_eq!(meta.version, version_before + 1);
         });
     }
 

@@ -190,7 +190,7 @@ impl<'a> Chonk<'a> {
 
     /// Remove all chunks
     pub fn clear(&self) {
-        let meta = self.meta();
+        let mut meta = self.meta();
 
         // Remove all chunks
         for i in 0..meta.count {
@@ -198,9 +198,11 @@ impl<'a> Chonk<'a> {
             self.env.storage().persistent().remove(&key);
         }
 
-        // Remove metadata
-        let meta_key = ChonkKey::Meta(self.id.clone());
-        self.env.storage().persistent().remove(&meta_key);
+        // Reset metadata but preserve and increment version
+        meta.count = 0;
+        meta.total_bytes = 0;
+        meta.version += 1;
+        self.save_meta(&meta);
     }
 
     // ─── Bulk Operations ───────────────────────────────────
