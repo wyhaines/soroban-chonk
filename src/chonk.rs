@@ -126,7 +126,11 @@ impl<'a> Chonk<'a> {
         self.save_meta(&meta);
     }
 
-    /// Insert a chunk at index (shifts subsequent chunks)
+    /// Insert a chunk at index (shifts subsequent chunks).
+    ///
+    /// This is O(n) in storage operations — each shifted chunk requires a read
+    /// and a write. For collections with many chunks, this may exceed Soroban
+    /// transaction resource limits. Prefer `push()` when ordering is not critical.
     pub fn insert(&self, index: u32, data: Bytes) {
         let mut meta = self.meta();
         if index > meta.count {
@@ -153,7 +157,11 @@ impl<'a> Chonk<'a> {
         self.save_meta(&meta);
     }
 
-    /// Remove a chunk at index (shifts subsequent chunks)
+    /// Remove a chunk at index (shifts subsequent chunks).
+    ///
+    /// This is O(n) in storage operations — each shifted chunk requires a read
+    /// and a write. For collections with many chunks, this may exceed Soroban
+    /// transaction resource limits.
     pub fn remove(&self, index: u32) -> Option<Bytes> {
         let mut meta = self.meta();
         if index >= meta.count {
