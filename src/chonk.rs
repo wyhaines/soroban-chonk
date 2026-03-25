@@ -207,6 +207,7 @@ impl<'a> Chonk<'a> {
 
     /// Write content, automatically chunking at specified size
     pub fn write_chunked(&self, content: Bytes, chunk_size: u32) {
+        assert!(chunk_size > 0, "chunk_size must be greater than 0");
         // Clear existing content
         self.clear();
 
@@ -217,7 +218,7 @@ impl<'a> Chonk<'a> {
 
         let mut offset = 0u32;
         while offset < content_len {
-            let end = core::cmp::min(offset + chunk_size, content_len);
+            let end = core::cmp::min(offset.saturating_add(chunk_size), content_len);
             let chunk = content.slice(offset..end);
             self.push(chunk);
             offset = end;

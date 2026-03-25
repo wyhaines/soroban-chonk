@@ -417,6 +417,17 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "chunk_size must be greater than 0")]
+    fn test_write_chunked_zero_chunk_size_panics() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+            chonk.write_chunked(bytes(&env, b"data"), 0);
+        });
+    }
+
+    #[test]
     fn test_insert_at_beginning() {
         let (env, contract_id) = setup_test_env();
 
@@ -895,18 +906,18 @@ mod tests {
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            // Push 100 small chunks
-            for i in 0u8..100 {
+            // Push 40 small chunks (SDK v25 limits write entries to 50)
+            for i in 0u8..40 {
                 chonk.push(bytes(&env, &[i]));
             }
 
-            assert_eq!(chonk.count(), 100);
-            assert_eq!(chonk.total_bytes(), 100);
+            assert_eq!(chonk.count(), 40);
+            assert_eq!(chonk.total_bytes(), 40);
 
             // Verify some values
             assert_eq!(chonk.get(0), Some(bytes(&env, &[0u8])));
-            assert_eq!(chonk.get(50), Some(bytes(&env, &[50u8])));
-            assert_eq!(chonk.get(99), Some(bytes(&env, &[99u8])));
+            assert_eq!(chonk.get(20), Some(bytes(&env, &[20u8])));
+            assert_eq!(chonk.get(39), Some(bytes(&env, &[39u8])));
         });
     }
 
