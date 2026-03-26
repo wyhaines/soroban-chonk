@@ -40,7 +40,7 @@
               },
               "durability": "persistent",
               "val": {
-                "bytes": "48656c6c6f2c20576f726c6421"
+                "bytes": "414243"
               }
             }
           },
@@ -70,7 +70,7 @@
               },
               "durability": "persistent",
               "val": {
-                "bytes": "20546869732069732061206c6f6e67206164646974696f6e"
+                "bytes": "444546"
               }
             }
           },
@@ -111,7 +111,7 @@
                       "symbol": "total_bytes"
                     },
                     "val": {
-                      "u32": 37
+                      "u32": 6
                     }
                   },
                   {
@@ -119,7 +119,7 @@
                       "symbol": "version"
                     },
                     "val": {
-                      "u32": 3
+                      "u32": 4
                     }
                   }
                 ]

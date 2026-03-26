@@ -56,7 +56,7 @@ impl<'a> Chonk<'a> {
     pub fn get_range(&self, start: u32, count: u32) -> Vec<Bytes> {
         let mut result = Vec::new(self.env);
         let meta = self.meta();
-        let end = core::cmp::min(start + count, meta.count);
+        let end = core::cmp::min(start.saturating_add(count), meta.count);
 
         for i in start..end {
             if let Some(chunk) = self.get(i) {
@@ -126,7 +126,11 @@ impl<'a> Chonk<'a> {
         self.save_meta(&meta);
     }
 
-    /// Insert a chunk at index (shifts subsequent chunks)
+    /// Insert a chunk at index (shifts subsequent chunks).
+    ///
+    /// This is O(n) in storage operations — each shifted chunk requires a read
+    /// and a write. For collections with many chunks, this may exceed Soroban
+    /// transaction resource limits. Prefer `push()` when ordering is not critical.
     pub fn insert(&self, index: u32, data: Bytes) {
         let mut meta = self.meta();
         if index > meta.count {
@@ -153,7 +157,11 @@ impl<'a> Chonk<'a> {
         self.save_meta(&meta);
     }
 
-    /// Remove a chunk at index (shifts subsequent chunks)
+    /// Remove a chunk at index (shifts subsequent chunks).
+    ///
+    /// This is O(n) in storage operations — each shifted chunk requires a read
+    /// and a write. For collections with many chunks, this may exceed Soroban
+    /// transaction resource limits.
     pub fn remove(&self, index: u32) -> Option<Bytes> {
         let mut meta = self.meta();
         if index >= meta.count {
@@ -190,7 +198,7 @@ impl<'a> Chonk<'a> {
 
     /// Remove all chunks
     pub fn clear(&self) {
-        let meta = self.meta();
+        let mut meta = self.meta();
 
         // Remove all chunks
         for i in 0..meta.count {
@@ -198,15 +206,18 @@ impl<'a> Chonk<'a> {
             self.env.storage().persistent().remove(&key);
         }
 
-        // Remove metadata
-        let meta_key = ChonkKey::Meta(self.id.clone());
-        self.env.storage().persistent().remove(&meta_key);
+        // Reset metadata but preserve and increment version
+        meta.count = 0;
+        meta.total_bytes = 0;
+        meta.version += 1;
+        self.save_meta(&meta);
     }
 
     // ─── Bulk Operations ───────────────────────────────────
 
     /// Write content, automatically chunking at specified size
     pub fn write_chunked(&self, content: Bytes, chunk_size: u32) {
+        assert!(chunk_size > 0, "chunk_size must be greater than 0");
         // Clear existing content
         self.clear();
 
@@ -217,7 +228,7 @@ impl<'a> Chonk<'a> {
 
         let mut offset = 0u32;
         while offset < content_len {
-            let end = core::cmp::min(offset + chunk_size, content_len);
+            let end = core::cmp::min(offset.saturating_add(chunk_size), content_len);
             let chunk = content.slice(offset..end);
             self.push(chunk);
             offset = end;
@@ -226,12 +237,22 @@ impl<'a> Chonk<'a> {
 
     /// Append content to last chunk or create new if it would exceed max size
     pub fn append(&self, content: Bytes, max_chunk_size: u32) {
+        if content.is_empty() {
+            return;
+        }
+
         let meta = self.meta();
-        let last_index = meta.count.saturating_sub(1);
+
+        if meta.count == 0 {
+            self.push(content);
+            return;
+        }
+
+        let last_index = meta.count - 1;
 
         // Try to append to existing last chunk if it fits
         if let Some(last_chunk) = self.get(last_index)
-            && last_chunk.len() + content.len() <= max_chunk_size
+            && last_chunk.len().saturating_add(content.len()) <= max_chunk_size
         {
             let mut combined = Bytes::new(self.env);
             combined.append(&last_chunk);
@@ -240,7 +261,7 @@ impl<'a> Chonk<'a> {
             return;
         }
 
-        // Create new chunk if empty, doesn't exist, or would exceed max size
+        // Create new chunk if would exceed max size
         self.push(content);
     }
 }

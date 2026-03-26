@@ -1,18 +1,16 @@
 #![no_std]
 
 mod chonk;
-mod error;
 mod iter;
 mod types;
 
 pub use chonk::Chonk;
-pub use error::ChonkError;
 pub use iter::ChonkIter;
 pub use types::{ChonkKey, ChonkMeta};
 
 /// Prelude for convenient imports
 pub mod prelude {
-    pub use crate::{Chonk, ChonkError, ChonkIter, ChonkKey, ChonkMeta};
+    pub use crate::{Chonk, ChonkIter, ChonkKey, ChonkMeta};
 }
 
 #[cfg(test)]
@@ -417,6 +415,17 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "chunk_size must be greater than 0")]
+    fn test_write_chunked_zero_chunk_size_panics() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+            chonk.write_chunked(bytes(&env, b"data"), 0);
+        });
+    }
+
+    #[test]
     fn test_insert_at_beginning() {
         let (env, contract_id) = setup_test_env();
 
@@ -566,6 +575,29 @@ mod tests {
     }
 
     #[test]
+    fn test_iter_size_hint() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+            chonk.push(bytes(&env, b"C"));
+
+            let mut iter = chonk.iter();
+            assert_eq!(iter.size_hint(), (3, Some(3)));
+
+            iter.next();
+            assert_eq!(iter.size_hint(), (2, Some(2)));
+
+            iter.next();
+            iter.next();
+            assert_eq!(iter.size_hint(), (0, Some(0)));
+        });
+    }
+
+    #[test]
     fn test_iter_partial() {
         let (env, contract_id) = setup_test_env();
 
@@ -700,6 +732,21 @@ mod tests {
         });
     }
 
+    #[test]
+    fn test_append_empty_bytes_to_empty_collection() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            // Appending empty content to empty collection should be a no-op
+            chonk.append(Bytes::new(&env), 10);
+
+            assert!(chonk.is_empty());
+            assert_eq!(chonk.count(), 0);
+        });
+    }
+
     // ─── Get Range Edge Case Tests ──────────────────────────
 
     #[test]
@@ -774,6 +821,22 @@ mod tests {
 
             let range = chonk.get_range(0, 3);
             assert_eq!(range.len(), 3);
+        });
+    }
+
+    #[test]
+    fn test_get_range_u32_max_overflow() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            chonk.push(bytes(&env, b"A"));
+            chonk.push(bytes(&env, b"B"));
+
+            // start + count would overflow u32; should not panic
+            let range = chonk.get_range(u32::MAX, 1);
+            assert_eq!(range.len(), 0);
         });
     }
 
@@ -857,10 +920,34 @@ mod tests {
             chonk.push(bytes(&env, b"A"));
             chonk.push(bytes(&env, b"B"));
 
+            let version_before = chonk.meta().version;
             chonk.clear();
 
-            // After clear, meta is removed so version resets
-            assert_eq!(chonk.meta().version, 0);
+            // After clear, version should be preserved and incremented
+            let meta = chonk.meta();
+            assert_eq!(meta.count, 0);
+            assert_eq!(meta.total_bytes, 0);
+            assert_eq!(meta.version, version_before + 1);
+        });
+    }
+
+    #[test]
+    fn test_version_across_write_chunked() {
+        let (env, contract_id) = setup_test_env();
+
+        env.as_contract(&contract_id, || {
+            let chonk = Chonk::open(&env, symbol_short!("test"));
+
+            chonk.push(bytes(&env, b"old"));
+            let version_before = chonk.meta().version; // 1
+
+            // write_chunked calls clear() then 2x push()
+            // clear: version_before + 1, push "ABC": +1, push "DEF": +1 = version_before + 3
+            chonk.write_chunked(bytes(&env, b"ABCDEF"), 3);
+
+            let version_after = chonk.meta().version;
+            assert_eq!(version_after, version_before + 3); // clear + 2 pushes
+            assert_eq!(chonk.count(), 2);
         });
     }
 
@@ -895,18 +982,18 @@ mod tests {
         env.as_contract(&contract_id, || {
             let chonk = Chonk::open(&env, symbol_short!("test"));
 
-            // Push 100 small chunks
-            for i in 0u8..100 {
+            // Push 40 small chunks (SDK v25 limits write entries to 50)
+            for i in 0u8..40 {
                 chonk.push(bytes(&env, &[i]));
             }
 
-            assert_eq!(chonk.count(), 100);
-            assert_eq!(chonk.total_bytes(), 100);
+            assert_eq!(chonk.count(), 40);
+            assert_eq!(chonk.total_bytes(), 40);
 
             // Verify some values
             assert_eq!(chonk.get(0), Some(bytes(&env, &[0u8])));
-            assert_eq!(chonk.get(50), Some(bytes(&env, &[50u8])));
-            assert_eq!(chonk.get(99), Some(bytes(&env, &[99u8])));
+            assert_eq!(chonk.get(20), Some(bytes(&env, &[20u8])));
+            assert_eq!(chonk.get(39), Some(bytes(&env, &[39u8])));
         });
     }
 
